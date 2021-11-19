@@ -65,7 +65,7 @@ export function cp(
 
       const tRes = server.writeToTextFile(dst, txtFile.text);
       if (!tRes.success) {
-        terminal.error("scp failed");
+        terminal.error("cp failed");
         return;
       }
       if (tRes.overwritten) {
@@ -86,13 +86,13 @@ export function cp(
       }
     }
     if (sourceScript == null) {
-      terminal.error("cp() failed. No such script exists");
+      terminal.error("cp failed. No such script exists");
       return;
     }
 
     const sRes = server.writeToScriptFile(dst, sourceScript.code);
     if (!sRes.success) {
-      terminal.error(`scp failed`);
+      terminal.error(`cp failed`);
       return;
     }
     if (sRes.overwritten) {
