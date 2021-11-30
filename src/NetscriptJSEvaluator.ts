@@ -2,6 +2,7 @@ import { makeRuntimeRejectMsg } from "./NetscriptEvaluator";
 import { ScriptUrl } from "./Script/ScriptUrl";
 import { WorkerScript } from "./Netscript/WorkerScript";
 import { Script } from "./Script/Script";
+import { getAllParentDirectories, evaluateFilePath, areFilesEqual } from "./Terminal/DirectoryHelpers";
 
 // Makes a blob that contains the code of a given script.
 function makeScriptBlob(code: string): Blob {
@@ -98,6 +99,7 @@ function _getScriptUrls(script: Script, scripts: Script[], seen: Script[]): Scri
   /** @type {ScriptUrl[]} */
   const urlStack = [];
   seen.push(script);
+  const scriptDirectory = getAllParentDirectories(script.filename);
   try {
     // Replace every import statement with an import to a blob url containing
     // the corresponding script. E.g.
@@ -110,20 +112,25 @@ function _getScriptUrls(script: Script, scripts: Script[], seen: Script[]): Scri
     //
     // Where the blob URL contains the script content.
     let transformedCode = script.code.replace(
-      /((?:from|import)\s+(?:'|"))(?:\.\/)?([^'"]+)('|")/g,
-      (unmodified, prefix, filename, suffix) => {
-        const isAllowedImport = scripts.some((s) => s.filename == filename);
-        if (!isAllowedImport) return unmodified;
+      /((?:from|import)\s+('|"))([^'"]+)(\2)/g,
+      (unmodified, prefix, quote, filename) => {
+        // Evaluate the path to this script file based on the script's directory.
+        // This accepts relative paths (library.js ./library.js ../library.js or ./folder/library.js)
+        // or absolute paths (/path/to/library.js)
+        const importedScriptAbsolutePath = evaluateFilePath(filename, scriptDirectory) || filename;
 
         // Find the corresponding script.
-        const [importedScript] = scripts.filter((s) => s.filename == filename);
+        const matchingScripts = scripts.filter((s) => areFilesEqual(s.filename, importedScriptAbsolutePath));
+        if (matchingScripts.length === 0) return unmodified;
+
+        const [importedScript] = matchingScripts;
 
         // Try to get a URL for the requested script and its dependencies.
         const urls = _getScriptUrls(importedScript, scripts, seen);
 
         // The top url in the stack is the replacement import file for this script.
         urlStack.push(...urls);
-        return [prefix, urls[urls.length - 1].url, suffix].join("");
+        return [prefix, urls[urls.length - 1].url, quote].join("");
       },
     );
 
