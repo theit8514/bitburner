@@ -5,6 +5,7 @@ import { BaseServer } from "../../Server/BaseServer";
 import { isScriptFilename } from "../../Script/isScriptFilename";
 import { TextFile } from "../../TextFile";
 import { Script } from "../../Script/Script";
+import { getDestinationFilepath, removeLeadingSlash } from "../DirectoryHelpers";
 
 export function mv(
   terminal: ITerminal,
@@ -34,15 +35,22 @@ export function mv(
     }
 
     const sourcePath = terminal.getFilepath(source);
-    const destPath = terminal.getFilepath(dest);
+    // Get the destination based on the source file and the current directory
+    const t_dst = getDestinationFilepath(dest, source, terminal.cwd());
+    if (t_dst === null) {
+      terminal.error("error parsing dst file");
+      return;
+    }
 
-    const destFile = terminal.getFile(player, dest);
+    const destPath = terminal.getFilepath(t_dst);
+    // Pass the path with a slash to getFile to prevent cwd issues, since root directory paths are stripped of the leading slash.
+    const destFile = terminal.getFile(player, "/" + removeLeadingSlash(destPath));
 
     // 'mv' command only works on scripts and txt files.
     // Also, you can't convert between different file types
     if (isScriptFilename(source)) {
       const script = srcFile as Script;
-      if (!isScriptFilename(dest)) {
+      if (!isScriptFilename(destPath)) {
         terminal.error(`Source and destination files must have the same type`);
         return;
       }
@@ -67,7 +75,7 @@ export function mv(
       script.filename = destPath;
     } else if (srcFile instanceof TextFile) {
       const textFile = srcFile as TextFile;
-      if (!dest.endsWith(".txt")) {
+      if (!destPath.endsWith(".txt")) {
         terminal.error(`Source and destination files must have the same type`);
         return;
       }
