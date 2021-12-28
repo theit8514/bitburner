@@ -13,6 +13,7 @@ on:
 jobs:
   docs:
     name: Reject markdown changes
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Get changed files using defaults
