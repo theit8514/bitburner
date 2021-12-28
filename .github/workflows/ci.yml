@@ -17,8 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: 'dev'
-          fetch-depth: 2
+          # ref: 'dev'
+          fetch-depth: 0
       - name: Get changed files using defaults
         id: changed-files
         uses: tj-actions/changed-files@v2.0.0
