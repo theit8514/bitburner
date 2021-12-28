@@ -11,6 +11,20 @@ on:
   workflow_dispatch:
 
 jobs:
+  docs:
+    name: Reject markdown changes
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get changed files using defaults
+        id: changed-files
+        uses: tj-actions/changed-files@v2.0.0
+        with:
+          path: markdown
+      - name: Reject when changed
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          echo '::error:: Changes to markdown files are not permitted'
+          exit 1
   build:
     name: Build
     runs-on: ubuntu-latest
