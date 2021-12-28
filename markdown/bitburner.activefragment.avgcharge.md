@@ -7,5 +7,5 @@
 <b>Signature:</b>
 
 ```typescript
-avgCharge: number;
+avgCharge: number; ABC
 ```
