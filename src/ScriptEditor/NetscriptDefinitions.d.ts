@@ -91,6 +91,7 @@ interface Player {
 }
 
 /**
+ * Test
  * @public
  */
 interface RunningScript {
