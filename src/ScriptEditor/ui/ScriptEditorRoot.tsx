@@ -7,7 +7,7 @@ type IStandaloneCodeEditor = monaco.editor.IStandaloneCodeEditor;
 type ITextModel = monaco.editor.ITextModel;
 import { OptionsModal } from "./OptionsModal";
 import { Options } from "./Options";
-import { isValidFilePath } from "../../Terminal/DirectoryHelpers";
+import { getAllParentDirectories, isValidFilePath } from "../../Terminal/DirectoryHelpers";
 import { IPlayer } from "../../PersonObjects/IPlayer";
 import { IRouter } from "../../ui/Router";
 import { dialogBoxCreate } from "../../ui/React/DialogBox";
@@ -220,7 +220,8 @@ export function Root(props: IProps): React.ReactElement {
     }
     setUpdatingRam(true);
     const codeCopy = newCode + "";
-    const ramUsage = await calculateRamUsage(codeCopy, props.player.getCurrentServer().scripts);
+    const scriptDirectory = currentScript != null ? getAllParentDirectories(currentScript.fileName) : "/";
+    const ramUsage = await calculateRamUsage(codeCopy, props.player.getCurrentServer().scripts, scriptDirectory);
     if (ramUsage > 0) {
       debouncedSetRAM("RAM: " + numeralWrapper.formatRAM(ramUsage));
       return;

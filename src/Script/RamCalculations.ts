@@ -13,7 +13,7 @@ import { RamCalculationErrorCode } from "./RamCalculationErrorCodes";
 import { RamCosts, RamCostConstants } from "../Netscript/RamCostGenerator";
 import { Script } from "../Script/Script";
 import { WorkerScript } from "../Netscript/WorkerScript";
-import { areImportsEquals } from "../Terminal/DirectoryHelpers";
+import { evaluateFilePath, getAllParentDirectories, areImportsEquals } from "../Terminal/DirectoryHelpers";
 
 // These special strings are used to reference the presence of a given logical
 // construct within a user script.
@@ -36,6 +36,7 @@ async function parseOnlyRamCalculate(
   otherScripts: Script[],
   code: string,
   workerScript: WorkerScript,
+  scriptDirectory: string,
 ): Promise<number | RamCalculationErrorCode> {
   try {
     /**
@@ -57,8 +58,8 @@ async function parseOnlyRamCalculate(
     const parseQueue: string[] = [];
 
     // Parses a chunk of code with a given module name, and updates parseQueue and dependencyMap.
-    function parseCode(code: string, moduleName: string): void {
-      const result = parseOnlyCalculateDeps(code, moduleName);
+    function parseCode(code: string, moduleName: string, moduleDirectory: string): void {
+      const result = parseOnlyCalculateDeps(code, moduleName, moduleDirectory);
       completedParses.add(moduleName);
 
       // Add any additional modules to the parse queue;
@@ -74,7 +75,7 @@ async function parseOnlyRamCalculate(
 
     // Parse the initial module, which is the "main" script that is being run
     const initialModule = "__SPECIAL_INITIAL_MODULE__";
-    parseCode(code, initialModule);
+    parseCode(code, initialModule, scriptDirectory);
 
     // Process additional modules, which occurs if the "main" script has any imports
     while (parseQueue.length > 0) {
@@ -84,6 +85,7 @@ async function parseOnlyRamCalculate(
       // Additional modules can either be imported from the web (in which case we use
       // a dynamic import), or from other in-game scripts
       let code;
+      let directory = "";
       if (nextModule.startsWith("https://") || nextModule.startsWith("http://")) {
         try {
           // eslint-disable-next-line no-await-in-loop
@@ -105,7 +107,9 @@ async function parseOnlyRamCalculate(
         }
 
         let script = null;
-        const fn = nextModule.startsWith("./") ? nextModule.slice(2) : nextModule;
+        const fn = evaluateFilePath(nextModule, scriptDirectory) ||
+          evaluateFilePath(nextModule + ".js", scriptDirectory) ||
+          nextModule;
         for (const s of otherScripts) {
           if (areImportsEquals(s.filename, fn)) {
             script = s;
@@ -118,9 +122,10 @@ async function parseOnlyRamCalculate(
         }
 
         code = script.code;
+        directory = getAllParentDirectories(script.filename) || "";
       }
 
-      parseCode(code, nextModule);
+      parseCode(code, nextModule, directory);
     }
 
     // Finally, walk the reference map and generate a ram cost. The initial set of keys to scan
@@ -259,7 +264,7 @@ export function checkInfiniteLoop(code: string): number {
  * for RAM usage calculations. It also returns an array of additional modules
  * that need to be parsed (i.e. are 'import'ed scripts).
  */
-function parseOnlyCalculateDeps(code: string, currentModule: string): any {
+function parseOnlyCalculateDeps(code: string, currentModule: string, moduleDirectory: string): any {
   const ast = parse(code, { sourceType: "module", ecmaVersion: "latest" });
   // Everything from the global scope goes in ".". Everything else goes in ".function", where only
   // the outermost layer of functions counts.
@@ -334,7 +339,15 @@ function parseOnlyCalculateDeps(code: string, currentModule: string): any {
     Object.assign(
       {
         ImportDeclaration: (node: any, st: any) => {
-          const importModuleName = node.source.value;
+          const importSource = node.source.value;
+          // For urls, do not process the source to a path
+          // For relative paths, evaluate to an absolute path based on the moduleDirectory
+          // If importSource does not end in .js, evaluateFilePath will return null. Attempt to add .js to this filename.
+          const importModuleName = importSource.startsWith("https://") || importSource.startsWith("http://") ?
+            importSource :
+            evaluateFilePath(importSource, moduleDirectory) ||
+            evaluateFilePath(importSource + ".js", moduleDirectory) ||
+            importSource;
           additionalModules.push(importModuleName);
 
           // This module's global scope refers to that module's global scope, no matter how we
@@ -373,10 +386,12 @@ function parseOnlyCalculateDeps(code: string, currentModule: string): any {
  * @param {string} codeCopy - The script's code
  * @param {Script[]} otherScripts - All other scripts on the server.
  *                                  Used to account for imported scripts
+ * @param {string} scriptDirectory - The directory to base the initial script for relative path resolution
  */
 export async function calculateRamUsage(
   codeCopy: string,
   otherScripts: Script[],
+  scriptDirectory: string
 ): Promise<RamCalculationErrorCode | number> {
   // We don't need a real WorkerScript for this. Just an object that keeps
   // track of whatever's needed for RAM calculations
@@ -388,7 +403,7 @@ export async function calculateRamUsage(
   } as WorkerScript;
 
   try {
-    return await parseOnlyRamCalculate(otherScripts, codeCopy, workerScript);
+    return await parseOnlyRamCalculate(otherScripts, codeCopy, workerScript, scriptDirectory);
   } catch (e) {
     console.error(`Failed to parse script for RAM calculations:`);
     console.error(e);

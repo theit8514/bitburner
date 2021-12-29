@@ -10,6 +10,7 @@ import { ScriptUrl } from "./ScriptUrl";
 import { Generic_fromJSON, Generic_toJSON, Reviver } from "../utils/JSONReviver";
 import { roundToTwo } from "../utils/helpers/roundToTwo";
 import { computeHash } from "../utils/helpers/computeHash";
+import { getAllParentDirectories } from "../Terminal/DirectoryHelpers";
 
 let globalModuleSequenceNumber = 0;
 
@@ -130,7 +131,7 @@ export class Script {
    * @param {Script[]} otherScripts - Other scripts on the server. Used to process imports
    */
   async updateRamUsage(otherScripts: Script[]): Promise<void> {
-    const res = await calculateRamUsage(this.code, otherScripts);
+    const res = await calculateRamUsage(this.code, otherScripts, getAllParentDirectories(this.filename));
     if (res > 0) {
       this.ramUsage = roundToTwo(res);
     }
