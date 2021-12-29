@@ -19,6 +19,7 @@ import { dialogBoxCreate } from "./ui/React/DialogBox";
 import { Reviver, Generic_toJSON, Generic_fromJSON } from "./utils/JSONReviver";
 import { save } from "./db";
 import { v1APIBreak } from "./utils/v1APIBreak";
+import { rewriteImports } from "./utils/RewriteImports";
 import { AugmentationNames } from "./Augmentation/data/AugmentationNames";
 import { PlayerOwnedAugmentation } from "./Augmentation/PlayerOwnedAugmentation";
 
@@ -232,6 +233,9 @@ function evaluateVersionCompatibility(ver: string | number): void {
           ind.thisCycleExpenses = parseFloat(ind.thisCycleExpenses);
         }
       }
+    }
+    if (ver < 8) {
+      rewriteImports();
     }
   }
 }
