@@ -21,6 +21,7 @@ let AllServers: IMap<Server | HacknetServer> = {};
 
 function GetServerByIP(ip: string): BaseServer | undefined {
   for (const key in AllServers) {
+    if (!AllServers.hasOwnProperty(key)) continue;
     const server = AllServers[key];
     if (server.ip !== ip) continue;
     return server;
@@ -31,6 +32,7 @@ function GetServerByIP(ip: string): BaseServer | undefined {
 //    Relatively slow, would rather not use this a lot
 function GetServerByHostname(hostname: string): BaseServer | null {
   for (const key in AllServers) {
+    if (!AllServers.hasOwnProperty(key)) continue;
     const server = AllServers[key];
     if (server.hostname == hostname) {
       return server;
@@ -42,8 +44,10 @@ function GetServerByHostname(hostname: string): BaseServer | null {
 
 //Get server by IP or hostname. Returns null if invalid
 export function GetServer(s: string): BaseServer | null {
-  const server = AllServers[s];
-  if (server) return server;
+  if (AllServers.hasOwnProperty(s)) {
+    const server = AllServers[s];
+    if (server) return server;
+  }
   if (!isValidIPAddress(s)) {
     return GetServerByHostname(s);
   }
@@ -59,6 +63,7 @@ export function GetServer(s: string): BaseServer | null {
 export function GetAllServers(): BaseServer[] {
   const servers: BaseServer[] = [];
   for (const key in AllServers) {
+    if (!AllServers.hasOwnProperty(key)) continue;
     servers.push(AllServers[key]);
   }
   return servers;
@@ -66,6 +71,7 @@ export function GetAllServers(): BaseServer[] {
 
 export function DeleteServer(serverkey: string): void {
   for (const key in AllServers) {
+    if (!AllServers.hasOwnProperty(key)) continue;
     const server = AllServers[key];
     if (server.ip !== serverkey && server.hostname !== serverkey) continue;
     delete AllServers[key];
@@ -74,7 +80,7 @@ export function DeleteServer(serverkey: string): void {
 }
 
 export function ipExists(ip: string): boolean {
-  return AllServers[ip] != null;
+  return AllServers.hasOwnProperty(ip) && AllServers[ip] != null;
 }
 
 export function createUniqueRandomIp(): string {
